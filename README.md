@@ -161,6 +161,9 @@ docker compose up        # 前端 http://localhost:8501
 `.dockerignore` 已排除 `.env` 与报告 PDF —— 密钥不会被打进镜像层，构建上下文也不会带上 40MB 附件。
 未配 key 时容器照常启动，由应用给出明确报错，而不是 compose 启动失败。
 
+实测（配了 pip 国内源）：构建 4 分 23 秒，`docker compose up -d` 后前端即返回 200，
+容器内跑完一份完整日报 27.8 秒。国内网络让 pip 走清华源可显著缩短构建时间，见 `RUN.md`。
+
 ## 验收
 
 | 维度 | 要求 |

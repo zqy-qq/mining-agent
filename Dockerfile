@@ -9,7 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Python 依赖
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 国内网络可换源加速：docker compose build（在 .env 里设 PIP_INDEX_URL）
+ARG PIP_INDEX_URL=https://pypi.org/simple
+RUN pip install --no-cache-dir -i "$PIP_INDEX_URL" -r requirements.txt
 
 # 复制代码
 COPY . .

@@ -47,12 +47,18 @@ python -m agent.cli --mine thacker-pass --days 7
 
 ```bash
 # 1. 构建镜像
-docker-compose build
+docker compose build
 
 # 2. 启动
-docker-compose up
+docker compose up -d
 # 前端访问 http://localhost:8501
 ```
+
+**国内网络加速（可选）**：在 `.env` 里加一行 `PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`，
+compose 会作为 build arg 传给 Dockerfile 换 pip 源；Docker Hub 拉基础镜像慢则给 Docker Desktop
+配镜像加速器（设置 → Docker Engine → `registry-mirrors`）。
+
+> 本机实测（含加速）：构建 4 分 23 秒，容器内跑完一份完整日报 27.8 秒。
 
 ### docker-compose.yml 说明
 
@@ -141,6 +147,9 @@ export ENABLE_PDF_EXTRACT=1
 | 中文查询乱码 / 搜不到 | 确认 `agent/mcp_client.py` 给子进程设了 `PYTHONIOENCODING=utf-8` |
 | `GraphRecursionError` | 模型陷入重试循环。已设 3 轮硬止损；若仍触发说明 system prompt 被改动 |
 | `pdfplumber 装不上` | Windows 下需 Visual C++ 14+；或用 conda `conda install pdfplumber` |
+| `docker compose build` 卡在拉基础镜像 | Docker Hub 网络问题，给 Docker Desktop 配 `registry-mirrors` 加速器 |
+| `docker compose build` 卡在 pip | 国内网络，在 `.env` 加 `PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple` |
+| `docker compose up` 报端口被占用 | 本机已有 8501 进程（如另一份 Streamlit），先停掉或改 `ports` 映射 |
 | 新闻搜不到 | 检索词会自动放宽（矿区名+矿种 → 矿区名 → 矿种泛词，时效优先）。三源全失败才返回 `count=0`；若报告出现「本期未检索到有效新闻」，多为该检索窗口内确实没有新报道，`in_window=false` 即此意，属正常降级非故障 |
 | Streamlit 卡死 | 第一次跑 LangGraph 较慢（5-10 秒），等一会儿 |
 
