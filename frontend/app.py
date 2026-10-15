@@ -1,9 +1,9 @@
 """Streamlit 单页前端。
 
-布局：
-- 顶部：标题 + 矿区选择器 + 查询输入框
-- 中部：流式生成按钮 + 4 段简报展示
-- 侧栏：工具调用轨迹 + 下载按钮
+布局（全部在主区，避免侧栏在窄窗口被自动折叠）：
+- 顶部：标题 + 一行操作区（矿区选择 | 查询输入 | 生成按钮）
+- 中部：流式生成的 4 段简报 + 工具调用轨迹
+- 底部：下载 .md
 """
 from __future__ import annotations
 import asyncio
@@ -25,35 +25,46 @@ def load_mcp_tools():
     return asyncio.run(get_tools())
 
 
+@st.cache_data
+def load_index():
+    """缓存矿区索引。"""
+    return load_report_index()
+
+
 def main():
     st.title("⛏️ 矿权日报 Agent")
     st.caption("基于 MCP + LangGraph StateGraph | 输入查询 → 3 server 并发取数 → 4 段日报")
 
-    # 侧栏：矿区选择
-    with st.sidebar:
-        st.header("📍 矿区选择")
-        report_index = load_report_index()
-        mine_keys = list(report_index.keys())
-        mine_labels = {k: report_index[k]["name_cn"] for k in mine_keys}
-        selected = st.selectbox(
-            "选择矿区（也可在主区直接输入）",
-            options=mine_keys,
-            format_func=lambda k: f"{mine_labels[k]} ({k})",
-        )
+    report_index = load_index()
+    mine_keys = list(report_index.keys())
+    mine_labels = {k: report_index[k]["name_cn"] for k in mine_keys}
 
-    # 主区
-    col1, col2 = st.columns([3, 1])
-    with col1:
+    # 操作区：矿区选择 / 查询输入 / 生成按钮 —— 全部放主区
+    c1, c2, c3 = st.columns([1.3, 2.7, 1], vertical_alignment="bottom")
+    with c1:
+        selected = st.selectbox(
+            "矿区",
+            options=mine_keys,
+            format_func=lambda k: mine_labels[k],
+            help="可选矿区；也可直接在下框输入别名（如 PLS / McDermitt / Koryx）",
+        )
+    with c2:
         query = st.text_input(
             "查询",
+            key=f"query_{selected}",
             value=f"给我{mine_labels[selected]}矿区的今日日报",
             placeholder="如：给我萨克帕斯锂矿的今日日报",
         )
-    with col2:
+    with c3:
         run_btn = st.button("🚀 生成日报", type="primary", use_container_width=True)
 
+    info = report_index[selected]
+    st.caption(
+        f"矿种 {info['commodity']} ｜ 披露标准 {info['disclosure_standard']} ｜ 运营方 {info['operator']}"
+    )
+
     if not run_btn:
-        st.info("👈 在上方输入查询，点击生成按钮")
+        st.info("填好查询后点「生成日报」。首次约 5~10 秒（起 3 个 MCP 子进程 + 调模型）。")
         return
 
     # 加载工具
