@@ -1,0 +1,28 @@
+# 实际安装依赖（按已装版本锁定）
+# 安装：pip install -r requirements.txt
+
+# MCP 协议层
+fastmcp==0.4.0
+mcp==1.30.0
+langchain-mcp-adapters==0.3.2
+
+# LangGraph 编排（1.2 拆包）
+langgraph==1.2.15
+langgraph-checkpoint==4.3.0
+langgraph-prebuilt==1.1.1
+langgraph-sdk==0.4.7
+
+# LangChain 核心 + DeepSeek 接入
+langchain-core==1.6.5
+langchain-openai==1.6.6
+openai==3.19.2
+
+# 前端
+streamlit==1.66.0
+itsdangerous==2.2.0
+
+# 工具
+httpx==0.28.1
+pdfplumber==0.11.4
+python-dotenv==1.2.2
+pydantic==2.13.4

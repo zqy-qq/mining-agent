@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "mining-news": {
+      "command": "python",
+      "args": ["-m", "servers.mining_news.server"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    "mineral-pdf": {
+      "command": "python",
+      "args": ["-m", "servers.mineral_pdf.server"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    "lme-price": {
+      "command": "python",
+      "args": ["-m", "servers.lme_price.server"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  }
+}

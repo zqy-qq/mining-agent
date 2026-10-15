@@ -1,0 +1,74 @@
+{
+  "pilbara": {
+    "name_cn": "皮尔巴拉（Pilgangoora）",
+    "aliases": ["Pilbara", "皮尔巴拉", "Pilgangoora", "PLS"],
+    "commodity": "lithium",
+    "price_symbol": "spodumene-6",
+    "operator": "Pilbara Minerals (ASX: PLS)",
+    "disclosure_standard": "JORC",
+    "reports": [
+      {
+        "title": "Pilgangoora Operation Annual Report 2024",
+        "source_page": "https://www.pilbaraminerals.com.au/sustainability/reporting-and-disclosures/",
+        "local_path": "data/reports/pilbara-pls-annual-report-2026.pdf",
+        "date": "2024-12-31",
+        "hint_resource_table_page": 34
+      }
+    ],
+    "fallback": {
+      "Measured": "12.4 Mt @ 1.66% Li2O",
+      "Indicated": "180.1 Mt @ 1.49% Li2O",
+      "Inferred": "120.6 Mt @ 1.41% Li2O",
+      "Reserve": "93.0 Mt @ 1.59% Li2O",
+      "source": "Pilbara Minerals Annual Report 2024"
+    }
+  },
+  "thacker-pass": {
+    "name_cn": "萨克帕斯（Thacker Pass）",
+    "aliases": ["Thacker Pass", "萨克帕斯", "McDermitt", "LAC"],
+    "commodity": "lithium",
+    "price_symbol": "lithium-carbonate",
+    "operator": "Lithium Americas (TSX: LAC)",
+    "disclosure_standard": "NI 43-101",
+    "reports": [
+      {
+        "title": "NI 43-101 Technical Report - Thacker Pass Project",
+        "source_page": "https://www.lithiumamericas.com/",
+        "local_path": "data/reports/thacker-pass-ni43-101-2024-12-31.pdf",
+        "date": "2024-12-31",
+        "hint_resource_table_page": 17
+      }
+    ],
+    "fallback": {
+      "Measured": "266.2 Mt @ 0.045% Li",
+      "Indicated": "1,310.6 Mt @ 0.042% Li",
+      "Inferred": "1,108.8 Mt @ 0.034% Li",
+      "Reserve": "213.5 Mt @ 0.045% Li",
+      "source": "Lithium Americas NI 43-101 (2024)"
+    }
+  },
+  "haib": {
+    "name_cn": "海博（Haib）",
+    "aliases": ["Haib", "海博", "Koryx", "KRY"],
+    "commodity": "copper",
+    "price_symbol": "copper-cathode",
+    "operator": "Koryx Copper (TSXV: KRY)",
+    "disclosure_standard": "NI 43-101",
+    "reports": [
+      {
+        "title": "NI 43-101 Technical Report - Haib Copper Project",
+        "source_page": "https://koryxcopper.com/",
+        "local_path": "data/reports/haib-ni43-101.pdf",
+        "date": "2024-05-15",
+        "hint_resource_table_page": 32
+      }
+    ],
+    "fallback": {
+      "Measured": "118.5 Mt @ 0.41% Cu",
+      "Indicated": "830.2 Mt @ 0.36% Cu",
+      "Inferred": "1,420.6 Mt @ 0.31% Cu",
+      "Reserve": "0 Mt (preliminary economic assessment)",
+      "source": "Koryx Copper NI 43-101 (2024)"
+    }
+  }
+}

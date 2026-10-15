@@ -1,0 +1,24 @@
+{
+  "_comment": "实体归一表：把用户输入的矿别名映射到标准矿区 key。键是别名（小写），值是 report_index.json 里的矿区 key。",
+  "pilbara": "pilbara",
+  "皮尔巴拉": "pilbara",
+  "pilgangoora": "pilbara",
+  "pls": "pilbara",
+
+  "thacker-pass": "thacker-pass",
+  "thacker pass": "thacker-pass",
+  "萨克帕斯": "thacker-pass",
+  "mcdermitt": "thacker-pass",
+  "lac": "thacker-pass",
+
+  "haib": "haib",
+  "海博": "haib",
+  "koryx": "haib",
+  "kry": "haib",
+
+  "_commodity_aliases": {
+    "lithium": ["lithium", "锂", "spodumene", "锂辉石", "锂矿", "碳酸锂"],
+    "copper": ["copper", "铜", "cu", "cathode", "阴极铜"],
+    "cobalt": ["cobalt", "钴"]
+  }
+}
