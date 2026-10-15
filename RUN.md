@@ -114,6 +114,6 @@ export ENABLE_PDF_EXTRACT=1
 | 中文查询乱码 / 搜不到 | 确认 `agent/mcp_client.py` 给子进程设了 `PYTHONIOENCODING=utf-8` |
 | `GraphRecursionError` | 模型陷入重试循环。已设 3 轮硬止损；若仍触发说明 system prompt 被改动 |
 | `pdfplumber 装不上` | Windows 下需 Visual C++ 14+；或用 conda `conda install pdfplumber` |
-| 新闻搜不到 | Google News 不可达时会自动降级到 Bing / mining.com；全失败则如实标注 |
+| 新闻搜不到 | 检索词会自动放宽（矿区名+矿种 → 矿区名 → 矿种泛词，时效优先）。三源全失败才返回 `count=0`；若报告出现「本期未检索到有效新闻」，多为该检索窗口内确实没有新报道，`in_window=false` 即此意，属正常降级非故障 |
 | Streamlit 卡死 | 第一次跑 LangGraph 较慢（5-10 秒），等一会儿 |
 

@@ -3,7 +3,8 @@
     "name_cn": "皮尔巴拉（Pilgangoora）",
     "aliases": ["Pilbara", "皮尔巴拉", "Pilgangoora", "PLS"],
     "commodity": "lithium",
-    "price_symbol": "spodumene-6",
+    "price_symbol": "lithium-carbonate",
+    "_price_note": "锂辉石（spodumene）无独立期货合约，采用碳酸锂（LCE 口径）作为锂行业定价基准，可取真实行情",
     "operator": "Pilbara Minerals (ASX: PLS)",
     "disclosure_standard": "JORC",
     "reports": [

@@ -57,9 +57,9 @@ mining-rights-daily/
 │   └── cli.py               # 命令行入口
 ├── frontend/app.py          # Streamlit 单页
 ├── servers/                 # 3 个 MCP server
-│   ├── mining_news/         # 新闻聚合（RSS 多源降级 + 正文抓取）
+│   ├── mining_news/         # 新闻聚合（mining.com 检索 RSS，时效优先降级）
 │   ├── mineral_pdf/         # 资源量（预抽索引 + 可选真抽）
-│   └── lme_price/           # 价格行情（内置快照）
+│   └── lme_price/           # 价格行情（LME/广期所真实源 + 降级）
 ├── scripts/check_reports.py # 查看本地报告 PDF 状态
 ├── data/
 │   ├── report_index.json    # 报告索引 + 预抽资源量数据
@@ -72,9 +72,9 @@ mining-rights-daily/
 
 | Server | 工具 | 数据源 |
 |---|---|---|
-| `mining-news` | `search(query, days)` / `fetch_article(url)` | 公开 RSS，四源逐级降级 |
+| `mining-news` | `search(query, days)` / `fetch_article(url)` | mining.com 检索 RSS（三源），**时效优先**降级 |
 | `mineral-pdf` | `extract_resources(pdf_url)` | `report_index.json` 预抽数据 |
-| `lme-price` | `get_price(commodity, date)` / `get_trend(commodity, days)` | 内置 30 天行情快照 |
+| `lme-price` | `get_price(commodity, date)` / `get_trend(commodity, days)` | 新浪财经公开接口：LME 外盘（美元）+ 广期所（人民币），失败降级内置基准价 |
 
 传输方式统一 `stdio` —— 这样 `mcp-config.json` 能被 Claude Desktop / Cursor 直接加载。
 
@@ -98,9 +98,22 @@ START → normalize → llm_call ⇄ tool_node → report → END
 
 | 数据线 | 策略 | 断网表现 |
 |---|---|---|
-| 新闻 | RSS 四源逐级降级（Google News 中/英 → Bing → mining.com） | 返回空列表，报告如实标注 |
+| 新闻 | mining.com 检索 RSS 三源（关键词搜索 → 最新 feed → Nasdaq 兜底）；检索词按「矿区名+矿种」→「矿区名」→「矿种」放宽，**以时效优先**：只返回窗口内命中，窗口内零命中时返回 `in_window=false` 并声明「非本期新闻」 | 外呼失败逐源降级；全失败返回 `count=0`，报告如实标注 |
 | 储量 | `report_index.json` 预抽数据（人工核对） | 无影响 |
-| 价格 | 内置 30 天行情快照 | 无影响 |
+| 价格 | **真实行情优先**：新浪财经公开接口（免费无 key）—— 铜/镍/铝/锌/锡/铅走 LME 外盘（美元/吨），锂走广期所碳酸锂（人民币元/吨）；锂辉石、钴无对应期货合约 | 自动降级内置基准价，报告标注「模拟，非实时行情」 |
+
+### 价格数据源（真实行情）
+
+| 品种 | 源 | 单位 | 口径 |
+|---|---|---|---|
+| 铜 `copper` | LME 伦铜（新浪外盘 `hf_CAD`） | USD/t | LME 官方报价，真实 |
+| 镍 `nickel` | LME 伦镍（`hf_NID`） | USD/t | 真实 |
+| 铝 / 锌 / 锡 / 铅 | LME 对应合约（`hf_AHD`/`ZSD`/`SND`/`PBD`） | USD/t | 真实 |
+| 锂 `lithium` | 广期所碳酸锂（新浪内盘 `nf_LC0`） | CNY/t | 国内期货主力连续，真实 |
+| 锂辉石 `spodumene` / 钴 `cobalt` | 内置基准价 | USD/t | 无期货合约，**模拟** |
+
+- 快照与 30 日历史日线均取自同一公开接口，返回体带 `source`（`sina-lme` / `sina-gfex` / `fallback-mock`）与 `source_name`、`unit` 字段，报告直接引用，**不自行换算币种**。
+- 拿到陈旧数据（>15 天）时按失败处理并降级 —— 新浪内盘代码漏 `nf_` 前缀会 HTTP 200 返回约两年前的报价，此校验即为此设。
 
 **断网也能完整跑出 4 段日报** —— 面试官 clone 后无需任何额外准备。
 

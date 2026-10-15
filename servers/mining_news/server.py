@@ -5,6 +5,12 @@
 2. mining.com 固定 feed —— 备源，拉最新列表后本地过滤
 3. Nasdaq 商品新闻 RSS —— 兜底
 
+检索词按「矿区名 + 矿种」→「矿区名」→「矿种」逐级放宽，并**以时效优先**：
+先在精确词里找窗口内命中，找不到再退到矿种泛词找窗口内行业动态；
+全部候选都无窗口内命中时，才返回窗口外条目并置 in_window=False 显式声明。
+（实测：三个矿区的项目专名在 mining.com 近 7 天均无报道，而 lithium / copper
+矿种词有 9 / 21 条窗口内命中，故必须做这层降级。）
+
 中文查询会自动转成英文检索词（矿区别名 + 矿种词表），因为可用的矿业新闻源
 都是英文媒体。Google News / Bing News 在当前网络下不可达或已停止提供 RSS。
 """
@@ -114,20 +120,64 @@ def _filter_by_terms(items: list[dict[str, Any]], terms: list[str]) -> list[dict
     return [it for it in items if any(k in (it["title"] + " " + it["source"]).lower() for k in keys)]
 
 
-def _within_days(items: list[dict[str, Any]], days: int) -> list[dict[str, Any]]:
-    """按发布时间做软过滤：窗口内有结果就用窗口内的，否则回退全部。"""
+def _parse_pub(pub: str) -> datetime | None:
+    """解析 RSS 的 pubDate，失败返回 None。"""
+    try:
+        return datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %z")
+    except Exception:
+        return None
+
+
+def _sort_newest_first(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """按发布时间倒序（解析失败的排最后），避免截断时丢掉最新条目。"""
+    floor = datetime.min.replace(tzinfo=timezone.utc)
+    return sorted(items, key=lambda it: _parse_pub(it.get("published", "")) or floor,
+                  reverse=True)
+
+
+def _split_by_days(items: list[dict[str, Any]], days: int) -> tuple[list, list]:
+    """按发布时间分桶 -> (窗口内, 窗口外)。
+
+    与旧的软过滤不同：窗口内为空时**不回退成全部**，而是把窗口外条目单独返回，
+    由调用方显式标注「非本期新闻」，避免旧闻被当作本期报道写入日报。
+    同时给每条打上 age_days，便于模型与人工核对时效。
+    """
+    now = datetime.now(timezone.utc)
     if days <= 0:
-        return items
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    recent = []
+        for it in items:
+            it["age_days"] = None
+        return items, []
+    cutoff = now - timedelta(days=days)
+    recent, stale = [], []
     for it in items:
-        try:
-            dt = datetime.strptime(it["published"], "%a, %d %b %Y %H:%M:%S %z")
-        except Exception:
-            continue
-        if dt >= cutoff:
-            recent.append(it)
-    return recent or items
+        dt = _parse_pub(it.get("published", ""))
+        it["age_days"] = (now - dt).days if dt else None
+        (recent if (dt and dt >= cutoff) else stale).append(it)
+    return recent, stale
+
+
+def _match_level(items: list[dict[str, Any]], q: str) -> str:
+    """按**条目内容**判定命中层级（比只看检索词准，直接决定报告口径）。
+
+    project   ：有条目标题含检索词里出现的矿区英文名 —— 真·项目报道
+    commodity ：标题仅含矿种词 —— 行业动态，非项目专属
+    generic   ：都没有
+    """
+    names: list[str] = []
+    try:
+        for key, meta in load_report_index().items():
+            names += [n for n in [key] + list(meta.get("aliases") or [])
+                      if n and n.isascii()]
+    except Exception:
+        pass
+    ql = q.lower()
+    blob = " ".join((it.get("title", "") + " " + it.get("source", "")) for it in items).lower()
+    # 只有在「检索词含该矿区名」且「条目标题也含该矿区名」时才算 project
+    if any(n.lower() in ql and n.lower() in blob for n in names):
+        return "project"
+    if any(w.lower() in blob for words in COMMODITY_EN.values() for w in words):
+        return "commodity"
+    return "generic"
 
 
 @mcp.tool()
@@ -137,22 +187,44 @@ async def search(query: str, days: int = 7) -> dict[str, Any]:
     支持中文查询：内部会自动把矿区中文名（如「海博」）与矿种（如「铜矿」）
     转成英文检索词，再到英文矿业媒体检索。
 
+    检索策略为**时效优先的两级降级**：
+    1. 先用「矿区名 + 矿种」精确检索，取窗口内的条目（最相关）；
+    2. 窗口内无命中时，自动放宽到「矿种」泛词（如 lithium / copper），
+       取窗口内的行业动态；
+    3. 仍无窗口内命中，才返回窗口外最近条目，并置 in_window=False、
+       在 note 中声明「非本期新闻，不得采信」。
+
     Args:
         query: 搜索关键词（如 "海博 铜矿" / "Pilbara lithium"）。
-        days: 时间窗口（天数，默认 7；窗口内无结果时回退为最近条目）。
+        days: 时间窗口（天数，默认 7）。
 
     Returns:
-        {"query", "count", "items": [{title, url, source, published}]}。
+        {"query", "resolved_query", "count", "in_window", "window_days",
+         "match_level", "note", "items": [{title, url, source, published, age_days}]}。
+        in_window=False 表示无窗口内命中，items 仅为窗口外背景条目。
         失败返回 count=0 且带 error 字段。
     """
     candidates = _candidate_queries(query)
     terms = _english_terms(query)
     last_error = ""
+    best_stale: list[dict[str, Any]] = []
+    best_stale_query = ""
+    best_stale_url = ""
+    requests = 0
+    # 候选词 × 3 源最多可达 12 次外呼，设上限防止放大
+    MAX_REQUESTS = 10
 
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+        stop = False
         for q in candidates:
+            if stop:
+                break
             for kind, tpl in RSS_SOURCES:
+                if requests >= MAX_REQUESTS:
+                    stop = True
+                    break
                 url = tpl.format(query=quote_plus(q))
+                requests += 1
                 try:
                     resp = await client.get(url, headers={"User-Agent": USER_AGENT})
                     resp.raise_for_status()
@@ -165,19 +237,46 @@ async def search(query: str, days: int = 7) -> dict[str, Any]:
                 # search 型源服务端已按关键词过滤，不再本地过滤；feed 型需要过滤
                 if kind == "feed":
                     items = _filter_by_terms(items, terms or [q])
-                items = _within_days(items, days)[:20]
+                # 先按时间倒序再截断，否则按相关度排序的源会丢掉最新条目
+                items = _sort_newest_first(items)[:30]
 
                 if not items:
                     last_error = f"{url[:60]} -> 0 rows"
                     logger.warning(f"source {url[:60]} -> 0 rows (q={q!r}), trying next")
                     continue
 
-                logger.info(f"search({query!r}) -> q={q!r} via {url[:45]} -> {len(items)} rows")
-                return {"query": query, "resolved_query": q, "days": days,
-                        "count": len(items), "items": items}
+                recent, stale = _split_by_days(items, days)
+                if recent:
+                    level = _match_level(recent[:20], q)
+                    logger.info(f"search({query!r}) -> q={q!r} in-window {len(recent)} rows "
+                                f"(level={level})")
+                    return {"query": query, "resolved_query": q, "days": days,
+                            "count": len(recent[:20]), "items": recent[:20],
+                            "in_window": True, "window_days": days,
+                            "match_level": level, "source_used": url,
+                            "note": f"以下为 {days} 天窗口内命中的新闻（检索词：{q}，"
+                                    f"命中层级：{level}）。"}
+                # 窗口内无命中：记下最近一批窗口外条目作背景，继续找时效更好的候选
+                if stale and not best_stale:
+                    best_stale = stale[:20]
+                    best_stale_query = q
+                    best_stale_url = url
+
+    if best_stale:
+        logger.warning(f"search({query!r}) -> no in-window hit, fallback to stale "
+                       f"(q={best_stale_query!r}, {len(best_stale)} rows)")
+        return {"query": query, "resolved_query": best_stale_query, "days": days,
+                "count": len(best_stale), "items": best_stale,
+                "in_window": False, "window_days": days,
+                "match_level": _match_level(best_stale, best_stale_query),
+                "source_used": best_stale_url,
+                "note": f"检索窗口 {days} 天内**无任何命中**；以下条目的 age_days 均大于 "
+                        f"{days}，属窗口外历史存档，仅可作背景索引，"
+                        f"**严禁作为本期新闻采信或计入本期要点**。"}
 
     logger.error(f"all sources failed, last={last_error}")
-    return {"query": query, "days": days, "count": 0, "items": [], "error": last_error}
+    return {"query": query, "days": days, "count": 0, "items": [],
+            "in_window": False, "window_days": days, "error": last_error}
 
 
 @mcp.tool()
