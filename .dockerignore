@@ -1,0 +1,18 @@
+# 排除密钥与本地数据，避免打进镜像
+.env
+
+# 报告 PDF 体积大（单份 16~25MB），且默认不解析；需要真抽时挂载/手动放入
+data/reports/*.pdf
+
+# 生成产物与缓存
+output/*.md
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.venv/
+venv/
+
+# 文档与本地脚本
+*.md
+.workbuddy/

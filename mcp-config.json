@@ -2,24 +2,15 @@
   "mcpServers": {
     "mining-news": {
       "command": "python",
-      "args": ["-m", "servers.mining_news.server"],
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
+      "args": ["/ABSOLUTE/PATH/TO/mining-rights-daily/scripts/mcp_launch.py", "mining-news"]
     },
     "mineral-pdf": {
       "command": "python",
-      "args": ["-m", "servers.mineral_pdf.server"],
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
+      "args": ["/ABSOLUTE/PATH/TO/mining-rights-daily/scripts/mcp_launch.py", "mineral-pdf"]
     },
     "lme-price": {
       "command": "python",
-      "args": ["-m", "servers.lme_price.server"],
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
+      "args": ["/ABSOLUTE/PATH/TO/mining-rights-daily/scripts/mcp_launch.py", "lme-price"]
     }
   }
 }

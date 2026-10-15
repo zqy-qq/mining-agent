@@ -1,12 +1,17 @@
-version: "3.8"
-
 services:
   app:
     build: .
     ports:
       - "8501:8501"
-    env_file:
-      - .env
+    # 用 environment + 插值：Compose 会自动读同目录下的 .env，
+    # 缺失时回退为空值由应用给出明确报错，而不是 compose 直接启动失败
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_TEMPERATURE: ${DEEPSEEK_TEMPERATURE:-0.3}
+      DEEPSEEK_MAX_TOKENS: ${DEEPSEEK_MAX_TOKENS:-2000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PYTHONIOENCODING: utf-8
     volumes:
       - ./data:/app/data
       - ./output:/app/output

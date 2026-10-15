@@ -47,9 +47,10 @@ mining-rights-daily/
 ├── README.md                # 本文件
 ├── RUN.md                   # 部署与排障（含 docker-compose）
 ├── requirements.txt         # Python 依赖（锁版本）
-├── mcp-config.json          # MCP 客户端配置（兼容 Claude Desktop / Cursor）
+├── mcp-config.json          # MCP 客户端配置（Claude Desktop / Cursor，需替换绝对路径）
 ├── Dockerfile
 ├── docker-compose.yml
+├── .dockerignore            # 排除 .env 与 PDF，避免打进镜像
 ├── shared/                  # 共享配置、日志、SQLite
 ├── agent/                   # Agent 编排层
 │   ├── graph.py             # StateGraph 主路径
@@ -62,7 +63,9 @@ mining-rights-daily/
 │   ├── mining_news/         # 新闻聚合（mining.com 检索 RSS，时效优先降级）
 │   ├── mineral_pdf/         # 资源量（预抽索引 + 可选真抽）
 │   └── lme_price/           # 价格行情（LME/广期所真实源 + 降级）
-├── scripts/check_reports.py # 查看本地报告 PDF 状态
+├── scripts/
+│   ├── mcp_launch.py        # MCP server 启动器（不依赖 cwd / PYTHONPATH）
+│   └── check_reports.py     # 查看本地报告 PDF 状态
 ├── data/
 │   ├── report_index.json    # 报告索引 + 预抽资源量数据
 │   ├── entity_map.json      # 实体归一表（矿区别名 → 标准 key）
@@ -78,7 +81,31 @@ mining-rights-daily/
 | `mineral-pdf` | `extract_resources(pdf_url)` | `report_index.json` 预抽数据 |
 | `lme-price` | `get_price(commodity, date)` / `get_trend(commodity, days)` | 新浪财经公开接口：LME 外盘（美元）+ 广期所（人民币），失败降级内置基准价 |
 
-传输方式统一 `stdio` —— 这样 `mcp-config.json` 能被 Claude Desktop / Cursor 直接加载。
+传输方式统一 `stdio` —— 三个 server 都可由 `mcp-config.json` 加载。
+
+### 接入 Claude Desktop / Cursor 验证
+
+`mcp-config.json` 里的路径是占位符，**必须先替换成仓库的绝对路径**：
+
+```json
+"args": ["C:/Users/you/mining-rights-daily/scripts/mcp_launch.py", "mining-news"]
+```
+
+原因：Claude Desktop 既不支持 `${workspaceFolder}` 变量，也不会把子进程 cwd 切到仓库根，
+写 `python -m servers.xxx.server` 会 `ModuleNotFoundError: No module named 'servers'`。
+`scripts/mcp_launch.py` 用自身路径反推仓库根并注入 `sys.path`，从任意 cwd 都能拉起。
+
+然后整段 `mcpServers` 合并到客户端配置里，重启客户端：
+
+| 客户端 | 配置文件 |
+|---|---|
+| Claude Desktop | `claude_desktop_config.json`（设置 → Developer → Edit Config） |
+| Cursor | `~/.cursor/mcp.json`，或仓库内 `.cursor/mcp.json` |
+
+重启后工具列表应出现 5 个工具。若 `python` 不在 PATH，换成解释器绝对路径（macOS/Linux 常为 `python3`）。
+
+> 不接客户端、单独验证某个 server：`python scripts/mcp_launch.py mining-news`（Ctrl+C 退出）。
+> 三个 server 均已实测：从任意 cwd 启动，退出码 0、无异常。
 
 ## Agent 编排
 
@@ -127,8 +154,12 @@ START → normalize → llm_call ⇄ tool_node → report → END
 ## Docker 启动
 
 ```bash
-docker-compose up        # 前端 http://localhost:8501
+cp .env.example .env     # 先填好 DEEPSEEK_API_KEY
+docker compose up        # 前端 http://localhost:8501
 ```
+
+`.dockerignore` 已排除 `.env` 与报告 PDF —— 密钥不会被打进镜像层，构建上下文也不会带上 40MB 附件。
+未配 key 时容器照常启动，由应用给出明确报错，而不是 compose 启动失败。
 
 ## 验收
 

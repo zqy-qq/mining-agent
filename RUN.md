@@ -54,21 +54,49 @@ docker-compose up
 # 前端访问 http://localhost:8501
 ```
 
-### docker-compose.yml 简化版
+### docker-compose.yml 说明
 
 ```yaml
-version: "3.8"
 services:
   app:
     build: .
     ports:
       - "8501:8501"
-    env_file:
-      - .env
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}   # 自动读同目录 .env，缺失时回退空值
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./data:/app/data
       - ./output:/app/output
 ```
+
+- 用 `environment` + 插值而非 `env_file`：`.env` 不存在时由应用在运行时报"key 未配置"，
+  而不是 Compose 直接启动失败（面试官 clone 后忘记 `cp .env.example .env` 也不会卡住）
+- 不写 `version:` —— 新版 Compose 已废弃该字段
+- `.dockerignore` 排除 `.env`、报告 PDF、`output/`，密钥不进镜像层
+
+## 接入 Claude Desktop / Cursor（MCP 客户端验证）
+
+`mcp-config.json` 里的路径是占位符，**先替换成仓库绝对路径**：
+
+```json
+"args": ["C:/Users/you/mining-rights-daily/scripts/mcp_launch.py", "mining-news"]
+```
+
+| 客户端 | 配置文件位置 |
+|---|---|
+| Claude Desktop | `claude_desktop_config.json`（设置 → Developer → Edit Config） |
+| Cursor | `~/.cursor/mcp.json`，或仓库内 `.cursor/mcp.json` |
+
+把 `mcpServers` 整段合并进去，重启客户端，工具列表应出现 5 个工具。
+
+> 为什么需要 `scripts/mcp_launch.py`：Claude Desktop 不支持 `${workspaceFolder}`，
+> 也不会把子进程 cwd 设为仓库根，直接写 `python -m servers.xxx.server` 会报
+> `ModuleNotFoundError: No module named 'servers'`。启动器用自身路径反推仓库根并注入
+> `sys.path`，从任意 cwd 都能拉起。已实测三个 server 均正常启动。
+>
+> `python` 不在 PATH 时换成解释器绝对路径（macOS / Linux 常为 `python3`）。
 
 ## 验证清单
 
@@ -76,9 +104,8 @@ services:
 |---|---|
 | `python -c "from shared.config import require_api_key; require_api_key()"` | 配 key 后无报错 |
 | `python -m scripts.check_reports` | 打印 3 个矿区的报告状态与来源页 |
-| `python -m servers.lme_price.server` | 启动 stdio server（Ctrl+C 退出） |
-| `python -m servers.mineral_pdf.server` | 同上 |
-| `python -m servers.mining_news.server` | 同上 |
+| `python scripts/mcp_launch.py mining-news` | 启动 stdio server（Ctrl+C 退出）；换成 `mineral-pdf` / `lme-price` 验证另外两个。任意 cwd 均可，不依赖 PYTHONPATH |
+| `python -m servers.lme_price.server` | 同上（需在仓库根目录执行） |
 | `python -m agent.cli --mine pilbara` | 输出 4 段简报，存档到 `output/` |
 | `streamlit run frontend/app.py` | 浏览器访问 8501 |
 
