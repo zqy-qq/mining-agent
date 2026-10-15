@@ -9,7 +9,7 @@
 > 环境要求：Python ≥ 3.11（本项目在 3.13.14 上验证通过）
 
 ```bash
-git clone https://github.com/zqy-qq/mining-agent.git
+git clone https://github.com/zqy-qq/mining-agent.git mining-rights-daily
 cd mining-rights-daily
 pip install -r requirements.txt
 ```
