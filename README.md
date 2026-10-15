@@ -6,8 +6,10 @@
 
 ### 1. 克隆 + 安装依赖
 
+> 环境要求：Python ≥ 3.11（本项目在 3.13.14 上验证通过）
+
 ```bash
-git clone <repo-url>
+git clone https://github.com/zqy-qq/mining-agent.git
 cd mining-rights-daily
 pip install -r requirements.txt
 ```

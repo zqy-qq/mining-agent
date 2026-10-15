@@ -11,7 +11,7 @@
 
 ```bash
 # 1. 克隆仓库
-git clone <repo-url>
+git clone https://github.com/zqy-qq/mining-agent.git
 cd mining-rights-daily
 
 # 2. 安装依赖（约 1 分钟）
