@@ -98,6 +98,20 @@ def make_tool_node(tools: list) -> ToolNode:
     return ToolNode(tools)
 
 
+def _strip_preamble(text: str) -> str:
+    """去掉正文前的模型独白。
+
+    模型偶发会把思考过程写进 content（如 "All three data sources returned. The news
+    results are largely off-topic..."），这段英文独白会直接污染简报开头。
+    启发式：报告正文一定以 Markdown 标题（`#`）开头，从第一个标题起截取。
+    """
+    lines = text.split("\n")
+    for i, ln in enumerate(lines):
+        if ln.lstrip().startswith("#"):
+            return "\n".join(lines[i:]).strip()
+    return text.strip()
+
+
 def make_report_node(llm_plain) -> Callable[[dict], dict]:
     """构造报告节点。
 
@@ -108,7 +122,7 @@ def make_report_node(llm_plain) -> Callable[[dict], dict]:
     def report(state: dict) -> dict:
         last = state["messages"][-1]
         if isinstance(last, AIMessage) and last.content:
-            text = last.content
+            text = _strip_preamble(last.content)
             logger.info(f"report: 采用模型输出 {len(text)} chars")
             return {"final_report": text}
 
@@ -117,7 +131,7 @@ def make_report_node(llm_plain) -> Callable[[dict], dict]:
             HumanMessage(content="请立即停止调用工具，基于以上全部信息直接输出 4 段简报。")
         ]
         resp = llm_plain.invoke(msgs)
-        text = resp.content or ""
+        text = _strip_preamble(resp.content or "")
         logger.info(f"report: 强制收尾 {len(text)} chars")
         return {"final_report": text, "messages": [resp]}
 
